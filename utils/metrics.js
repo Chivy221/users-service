@@ -5,7 +5,7 @@ requestCount++;
 }
 
 function getMetrics() {
-return # HELP request_count Total requests\n# TYPE request_count counter\nrequest_count ${requestCount};
+return # HELP request_count Total number of requests\n# TYPE request_count counter\nrequest_count ${requestCount};
 }
 
 module.exports = { increment, getMetrics };
