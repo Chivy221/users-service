@@ -12,7 +12,6 @@
 "users",
 "collaboration"
 ],
-"author": "Your Name",
 "license": "MIT",
 "dependencies": {
 "amqplib": "^0.10.3",
