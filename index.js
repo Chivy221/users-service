@@ -6,7 +6,7 @@ const User = require('./models/User');
 const { encrypt, decrypt } = require('./services/encryption');
 const { log } = require('./utils/logger');
 const { increment, getMetrics } = require('./utils/metrics');
-const { connectMQ, sendToQueue } = require('./services/mq');
+const { connectMQ, sendToQueue, onMessage } = require('./services/mq');
 
 const app = express();
 const cache = new NodeCache({ stdTTL: 60 });
@@ -73,6 +73,13 @@ mongoose.connect(process.env.MONGO_URL, {
   );
 }).catch(err => {
   console.error('❌ MongoDB connection error:', err.message);
+});
+
+connectMQ().then(() => {
+  onMessage(msg => {
+    console.log('Получено сообщение из in-memory queue:', msg);
+    // здесь можно обрабатывать события так же, как раньше
+  });
 });
 
 module.exports = app;
