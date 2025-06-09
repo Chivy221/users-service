@@ -17,13 +17,13 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
-  const users = await User.find().lean();
-  users.forEach(u => {
-    u.name = decrypt(u.name);
-    u.email = decrypt(u.email);
-  });
-  res.json(users);
+router.get("/", async (req, res) => {
+  try {
+    const users = await User.find(); // важно!
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch users", details: error.message });
+  }
 });
 
 router.get('/:id', async (req, res) => {
