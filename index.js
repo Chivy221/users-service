@@ -49,30 +49,30 @@ res.json(decryptedUsers);
 });
 
 app.post('/users', async (req, res) => {
-increment();
-const { name, email } = req.body;
-const encryptedEmail = encrypt(email);
-const newUser = new User({ name, email: encryptedEmail });
-await newUser.save();
+  increment();
+  const { name, email } = req.body;
+  const encryptedEmail = encrypt(email);
+  const newUser = new User({ name, email: encryptedEmail });
+  await newUser.save();
 
-const payload = { id: newUser._id, name, email };
-sendToQueue({ event: 'user.created', data: payload });
+  const payload = { id: newUser._id, name, email };
+  sendToQueue({ event: 'user.created', data: payload });
 
-log(POST /users: ${name});
-res.status(201).json({ id: newUser._id, name, email });
+  log(`POST /users: ${name}`);
+  res.status(201).json({ id: newUser._id, name, email });
 });
 
 mongoose.connect(process.env.MONGO_URL, {
-useNewUrlParser: true,
-useUnifiedTopology: true
+  useNewUrlParser: true,
+  useUnifiedTopology: true
 }).then(async () => {
-console.log('✅ MongoDB connected');
-await connectMQ();
-app.listen(process.env.PORT || 3000, () =>
-  console.log(`Users service running on port ${process.env.PORT}`);
-);
+  console.log('✅ MongoDB connected');
+  await connectMQ();
+  app.listen(process.env.PORT || 3000, () =>
+    console.log(`Users service running on port ${process.env.PORT || 3000}`) // обернули в стрелочную функцию с телом
+  );
 }).catch(err => {
-console.error('❌ MongoDB connection error:', err.message);
+  console.error('❌ MongoDB connection error:', err.message);
 });
 
 module.exports = app;
