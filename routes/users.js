@@ -1,38 +1,36 @@
 const express = require("express");
-const { v4: uuidv4 } = require("uuid");
-const User = require("../models/User");
-const { encrypt, decrypt } = require("../utils/encryption");
-
 const router = express.Router();
+const User = require("../models/User");
 
+// GET all users
 router.get("/", async (req, res) => {
   try {
-    const users = await User.find().lean(); 
-    const decryptedUsers = users.map((user) => ({
-      ...user,
-      name: decrypt(user.name),
-      email: decrypt(user.email),
-    }));
-    res.json(decryptedUsers);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch users", details: error.message });
+    const users = await User.find({});
+    console.log(`🟡 GET /users -> Found ${users.length} users`);
+    res.json(users);
+  } catch (err) {
+    console.error("❌ Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
   }
 });
+
+// POST new user
+const { v4: uuidv4 } = require("uuid");
 
 router.post("/", async (req, res) => {
   try {
     const { name, email } = req.body;
-
-    const user = new User({
+    const newUser = new User({
+      name,
+      email,
       id: uuidv4(),
-      name: encrypt(name),
-      email: encrypt(email),
     });
-
-    await user.save();
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to save user", details: error.message });
+    const savedUser = await newUser.save();
+    console.log("✅ User saved:", savedUser);
+    res.status(201).json(savedUser);
+  } catch (err) {
+    console.error("❌ Failed to save user:", err.message);
+    res.status(500).json({ error: "Failed to save user", details: err.message });
   }
 });
 
