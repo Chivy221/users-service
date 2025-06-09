@@ -50,9 +50,9 @@ res.json(decryptedUsers);
 
 app.post('/users', async (req, res) => {
   try {
-    const user = new User(req.body);
-    const result = await user.save();
-    res.status(201).json(result);
+    const user = new User(req.body); // id сгенерируется автоматически
+    const saved = await user.save();
+    res.status(201).json(saved);
   } catch (err) {
     console.error("❌ Error saving user:", err);
     res.status(500).json({ error: 'Failed to save user', details: err.message });
