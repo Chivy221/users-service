@@ -49,18 +49,16 @@ res.json(decryptedUsers);
 });
 
 app.post('/users', async (req, res) => {
-  increment();
-  const { name, email } = req.body;
-  const encryptedEmail = encrypt(email);
-  const newUser = new User({ name, email: encryptedEmail });
-  await newUser.save();
-
-  const payload = { id: newUser._id, name, email };
-  sendToQueue({ event: 'user.created', data: payload });
-
-  log(`POST /users: ${name}`);
-  res.status(201).json({ id: newUser._id, name, email });
+  try {
+    const user = new User(req.body);
+    const result = await user.save();
+    res.status(201).json(result);
+  } catch (err) {
+    console.error("❌ Error saving user:", err);
+    res.status(500).json({ error: 'Failed to save user', details: err.message });
+  }
 });
+
 
 mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,
