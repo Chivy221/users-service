@@ -3,7 +3,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const NodeCache = require('node-cache');
 const User = require('./models/User');
-const { encrypt, decrypt } = require('./services/encryption');
 const { log } = require('./utils/logger');
 const { increment, getMetrics } = require('./utils/metrics');
 const { connectMQ, sendToQueue, onMessage } = require('./services/mq');
@@ -13,70 +12,93 @@ const cache = new NodeCache({ stdTTL: 60 });
 
 app.use(express.json());
 
+// Health & Metrics
 app.get('/ping', (_, res) => res.send('pong'));
-app.get('/health', (req, res) => {
-res.status(200).json({ status: 'ok', service: 'users-service' });
-});
-
-app.delete('/users/:id', async (req, res) => {
-try {
-const deleted = await User.findByIdAndDelete(req.params.id);
-if (!deleted) return res.status(404).send('Not found');
-res.sendStatus(204);
-} catch (e) {
-res.status(500).send('Server error');
-}
+app.get('/health', (_, res) => {
+  res.status(200).json({ status: 'ok', service: 'users-service' });
 });
 app.get('/metrics', (_, res) => {
-res.set('Content-Type', 'text/plain');
-res.send(getMetrics());
+  res.set('Content-Type', 'text/plain');
+  res.send(getMetrics());
 });
 
+// GET all users (no decryption)
 app.get('/users', async (req, res) => {
-increment();
-const cached = cache.get('users');
-if (cached) return res.json(cached);
+  increment();
 
-const users = await User.find();
-const decryptedUsers = users.map(u => ({
-id: u._id,
-name: u.name,
-email: decrypt(u.email)
-}));
-cache.set('users', decryptedUsers);
-log('GET /users');
-res.json(decryptedUsers);
+  try {
+    const cached = cache.get('users');
+    if (cached) return res.json(cached);
+
+    const users = await User.find();
+    const userList = users.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email
+    }));
+
+    cache.set('users', userList);
+    log('GET /users');
+    res.json(userList);
+  } catch (err) {
+    console.error('❌ Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
 });
+
+// POST new user
+const { v4: uuidv4 } = require('uuid');
 
 app.post('/users', async (req, res) => {
   try {
-    const user = new User(req.body); // id сгенерируется автоматически
-    const saved = await user.save();
+    const { name, email } = req.body;
+
+    const newUser = new User({
+      name,
+      email,
+      id: uuidv4()
+    });
+
+    const saved = await newUser.save();
+    console.log('✅ User saved:', saved);
     res.status(201).json(saved);
   } catch (err) {
-    console.error("❌ Error saving user:", err);
+    console.error('❌ Error saving user:', err);
     res.status(500).json({ error: 'Failed to save user', details: err.message });
   }
 });
 
+// DELETE user
+app.delete('/users/:id', async (req, res) => {
+  try {
+    const deleted = await User.findOneAndDelete({ id: req.params.id });
+    if (!deleted) return res.status(404).send('User not found');
+    res.sendStatus(204);
+  } catch (err) {
+    res.status(500).send('Server error');
+  }
+});
 
+// MongoDB + Start
 mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(async () => {
   console.log('✅ MongoDB connected');
   await connectMQ();
-  app.listen(process.env.PORT || 3000, () =>
-    console.log(`Users service running on port ${process.env.PORT || 3000}`) // обернули в стрелочную функцию с телом
-  );
+
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`✅ Users service running on port ${port}`);
+  });
 }).catch(err => {
   console.error('❌ MongoDB connection error:', err.message);
 });
 
+// In-memory message queue handler (optional)
 connectMQ().then(() => {
   onMessage(msg => {
-    console.log('Получено сообщение из in-memory queue:', msg);
-    // здесь можно обрабатывать события так же, как раньше
+    console.log('📨 Received message from MQ:', msg);
   });
 });
 
