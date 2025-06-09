@@ -1,26 +1,16 @@
-const amqp = require('amqplib');
-
-let channel;
+const EventEmitter = require('events');
+const emitter = new EventEmitter();
 
 async function connectMQ() {
-try {
-const connection = await amqp.connect(process.env.RABBITMQ_URL);
-channel = await connection.createChannel();
-await channel.assertQueue(process.env.RABBITMQ_QUEUE, { durable: true });
-console.log('✅ Connected to RabbitMQ');
-} catch (err) {
-console.error('❌ MQ connection failed:', err.message);
-}
+  console.log('ℹ️ Using in-memory queue');
 }
 
 function sendToQueue(message) {
-if (!channel) {
-console.error('❌ Cannot send, channel not initialized');
-return;
-}
-channel.sendToQueue(process.env.RABBITMQ_QUEUE, Buffer.from(JSON.stringify(message)), {
-persistent: true
-});
+  emitter.emit('message', message);
 }
 
-module.exports = { connectMQ, sendToQueue };
+function onMessage(listener) {
+  emitter.on('message', listener);
+}
+
+module.exports = { connectMQ, sendToQueue, onMessage };
